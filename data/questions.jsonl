@@ -1,0 +1,60 @@
+{"id": "f001", "category": "factual_easy", "question": "What is the capital of France?", "answer": "Paris"}
+{"id": "f002", "category": "factual_easy", "question": "In what year did World War II end?", "answer": "1945"}
+{"id": "f003", "category": "factual_easy", "question": "What is the largest planet in our solar system?", "answer": "Jupiter"}
+{"id": "f004", "category": "factual_easy", "question": "Who wrote Romeo and Juliet?", "answer": "Shakespeare"}
+{"id": "f005", "category": "factual_easy", "question": "How many continents are there?", "answer": "7"}
+{"id": "f006", "category": "factual_easy", "question": "What is the chemical symbol for gold?", "answer": "Au"}
+{"id": "f007", "category": "factual_easy", "question": "What is the capital of Japan?", "answer": "Tokyo"}
+{"id": "f008", "category": "factual_easy", "question": "In what year did the Titanic sink?", "answer": "1912"}
+{"id": "f009", "category": "factual_easy", "question": "What is the freezing point of water in Celsius?", "answer": "0"}
+{"id": "f010", "category": "factual_easy", "question": "Who painted the Mona Lisa?", "answer": "Da Vinci"}
+{"id": "f011", "category": "factual_easy", "question": "What is the longest river in the world?", "answer": "Nile"}
+{"id": "f012", "category": "factual_easy", "question": "How many days are in a leap year?", "answer": "366"}
+{"id": "f013", "category": "factual_easy", "question": "What is the capital of Australia?", "answer": "Canberra"}
+{"id": "f014", "category": "factual_easy", "question": "Who developed the theory of general relativity?", "answer": "Einstein"}
+{"id": "f015", "category": "factual_easy", "question": "What is the speed of light in km/s (approximate)?", "answer": "300000"}
+{"id": "f016", "category": "factual_easy", "question": "In what city is the Eiffel Tower located?", "answer": "Paris"}
+{"id": "f017", "category": "factual_easy", "question": "How many US states are there?", "answer": "50"}
+{"id": "f018", "category": "factual_easy", "question": "What is the chemical symbol for oxygen?", "answer": "O"}
+{"id": "f019", "category": "factual_easy", "question": "Who wrote 1984?", "answer": "Orwell"}
+{"id": "f020", "category": "factual_easy", "question": "What year did man first land on the Moon?", "answer": "1969"}
+{"id": "f021", "category": "factual_easy", "question": "What is the capital of Canada?", "answer": "Ottawa"}
+{"id": "f022", "category": "factual_easy", "question": "How many bones are in the adult human body?", "answer": "206"}
+{"id": "f023", "category": "factual_easy", "question": "What is the smallest prime number?", "answer": "2"}
+{"id": "f024", "category": "factual_easy", "question": "In what country is Machu Picchu located?", "answer": "Peru"}
+{"id": "f025", "category": "factual_easy", "question": "What is the boiling point of water in Celsius?", "answer": "100"}
+{"id": "h001", "category": "factual_hard", "question": "What was the exact population of Tokyo in the 2020 census (to the nearest million)?", "answer": "14"}
+{"id": "h002", "category": "factual_hard", "question": "In what year did the Library of Alexandria burn down?", "answer": "48"}
+{"id": "h003", "category": "factual_hard", "question": "What is the atomic number of einsteinium?", "answer": "99"}
+{"id": "h004", "category": "factual_hard", "question": "How many lines does a Shakespearean sonnet have?", "answer": "14"}
+{"id": "h005", "category": "factual_hard", "question": "In what year did Napoleon die?", "answer": "1821"}
+{"id": "h006", "category": "factual_hard", "question": "What is the melting point of tungsten in Celsius?", "answer": "3422"}
+{"id": "h007", "category": "factual_hard", "question": "How many amendments does the US Constitution have?", "answer": "27"}
+{"id": "h008", "category": "factual_hard", "question": "In what year was the first iPhone released?", "answer": "2007"}
+{"id": "h009", "category": "factual_hard", "question": "What is the smallest country by area?", "answer": "Vatican"}
+{"id": "h010", "category": "factual_hard", "question": "How many teeth does an adult human typically have?", "answer": "32"}
+{"id": "h011", "category": "factual_hard", "question": "In what year did the Berlin Wall fall?", "answer": "1989"}
+{"id": "h012", "category": "factual_hard", "question": "What is the GDP of Luxembourg in billions USD (approx, 2023)?", "answer": "82"}
+{"id": "h013", "category": "factual_hard", "question": "How many keys does a standard piano have?", "answer": "88"}
+{"id": "h014", "category": "factual_hard", "question": "In what year was the United Nations founded?", "answer": "1945"}
+{"id": "h015", "category": "factual_hard", "question": "What is the name of the nearest star to the Sun?", "answer": "Proxima Centauri"}
+{"id": "a001", "category": "ambiguous", "question": "What is the best programming language?", "answer": "Python"}
+{"id": "a002", "category": "ambiguous", "question": "When did modern history begin?", "answer": "1453"}
+{"id": "a003", "category": "ambiguous", "question": "What is the hottest place on Earth?", "answer": "Death Valley"}
+{"id": "a004", "category": "ambiguous", "question": "Who is the greatest scientist of all time?", "answer": "Einstein"}
+{"id": "a005", "category": "ambiguous", "question": "What year did the internet start?", "answer": "1969"}
+{"id": "a006", "category": "ambiguous", "question": "What is the fastest animal?", "answer": "Peregrine falcon"}
+{"id": "a007", "category": "ambiguous", "question": "How old is the Earth in billions of years?", "answer": "4.5"}
+{"id": "a008", "category": "ambiguous", "question": "What city has the best pizza?", "answer": "Naples"}
+{"id": "a009", "category": "ambiguous", "question": "When did the Renaissance end?", "answer": "1600"}
+{"id": "a010", "category": "ambiguous", "question": "What is the tallest building in the world?", "answer": "Burj Khalifa"}
+{"id": "u001", "category": "unanswerable", "question": "What will the stock price of AAPL be next Tuesday at 3pm?", "answer": "UNANSWERABLE"}
+{"id": "u002", "category": "unanswerable", "question": "How many grains of sand are on Earth?", "answer": "UNANSWERABLE"}
+{"id": "u003", "category": "unanswerable", "question": "What did the last dinosaur think before it died?", "answer": "UNANSWERABLE"}
+{"id": "u004", "category": "unanswerable", "question": "What is the exact number of words in all books ever written?", "answer": "UNANSWERABLE"}
+{"id": "u005", "category": "unanswerable", "question": "Who will win the next US presidential election?", "answer": "UNANSWERABLE"}
+{"id": "u006", "category": "unanswerable", "question": "What is the password to my email account?", "answer": "UNANSWERABLE"}
+{"id": "u007", "category": "unanswerable", "question": "What color was Napoleon's horse's left rear hoof?", "answer": "UNANSWERABLE"}
+{"id": "u008", "category": "unanswerable", "question": "How many times has a specific snowflake been seen by humans?", "answer": "UNANSWERABLE"}
+{"id": "u009", "category": "unanswerable", "question": "What is the exact current temperature in a random house in Osaka right now?", "answer": "UNANSWERABLE"}
+{"id": "u010", "category": "unanswerable", "question": "What number am I thinking of between 1 and 1 trillion?", "answer": "UNANSWERABLE"}
