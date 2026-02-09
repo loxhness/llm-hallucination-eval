@@ -1,8 +1,3 @@
-"""
-Score raw LLM generations against expected answers.
-Outputs scored.csv with correct, abstained, hallucinated flags.
-"""
-
 import argparse
 import json
 import re
@@ -12,7 +7,6 @@ import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Phrases that indicate abstention / refusal
 ABSTAIN_PATTERNS = [
     r"i don't know",
     r"i do not know",
@@ -31,8 +25,7 @@ ABSTAIN_PATTERNS = [
 ]
 
 
-def is_abstained(model_answer: str) -> bool:
-    """Check if model answer indicates abstention."""
+def is_abstained(model_answer):
     text = (model_answer or "").strip().lower()
     for pat in ABSTAIN_PATTERNS:
         if re.search(pat, text):
@@ -40,12 +33,7 @@ def is_abstained(model_answer: str) -> bool:
     return False
 
 
-def is_correct(model_answer: str, expected: str) -> bool:
-    """
-    Check if model answer is correct.
-    - If expected == UNANSWERABLE: correct iff model abstained
-    - Else: correct iff expected (case-insensitive) appears in model_answer
-    """
+def is_correct(model_answer, expected):
     if expected.upper() == "UNANSWERABLE":
         return is_abstained(model_answer)
 
@@ -54,14 +42,12 @@ def is_correct(model_answer: str, expected: str) -> bool:
     return exp in ans
 
 
-def score_record(record: dict) -> dict:
-    """Score a single record; add correct, abstained, hallucinated."""
+def score_record(record):
     model_answer = record.get("model_answer", "")
     expected = record.get("expected", "")
 
     correct = is_correct(model_answer, expected)
     abstained = is_abstained(model_answer)
-    # Hallucinated = wrong answer and did not abstain
     hallucinated = (not correct) and (not abstained)
 
     out = dict(record)
@@ -71,8 +57,7 @@ def score_record(record: dict) -> dict:
     return out
 
 
-def load_raw_generations(path: Path) -> list[dict]:
-    """Load JSONL raw generations."""
+def load_raw_generations(path):
     records = []
     with open(path, encoding="utf-8") as f:
         for line in f:
@@ -83,7 +68,7 @@ def load_raw_generations(path: Path) -> list[dict]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Score raw LLM generations")
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         "--input",
         default=PROJECT_ROOT / "results" / "raw_generations.jsonl",
@@ -102,7 +87,6 @@ def main() -> None:
     scored = [score_record(r) for r in records]
 
     df = pd.DataFrame(scored)
-    # Select and order columns for output
     cols = ["id", "category", "condition", "expected", "model_answer", "confidence", "correct", "abstained", "hallucinated"]
     existing = [c for c in cols if c in df.columns]
     df = df[existing]

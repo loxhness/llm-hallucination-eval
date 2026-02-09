@@ -1,7 +1,3 @@
-"""
-Analyze scored results: summary metrics and plots.
-"""
-
 import argparse
 from pathlib import Path
 
@@ -11,18 +7,15 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
-def load_scored(path: Path) -> pd.DataFrame:
-    """Load scored.csv."""
+def load_scored(path):
     df = pd.read_csv(path)
-    # Ensure boolean columns are proper bools (CSV stores "True"/"False" as strings)
     for col in ("correct", "abstained", "hallucinated"):
         if col in df.columns:
             df[col] = df[col].astype(str).str.lower() == "true"
     return df
 
 
-def compute_summary(df: pd.DataFrame) -> pd.DataFrame:
-    """Compute summary by condition."""
+def compute_summary(df):
     rows = []
     for cond in df["condition"].unique():
         subset = df[df["condition"] == cond]
@@ -46,8 +39,7 @@ def compute_summary(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def plot_bar(ax, conditions: list, values: list, title: str, ylabel: str, color: str = "steelblue") -> None:
-    """Draw a simple bar chart."""
+def plot_bar(ax, conditions, values, title, ylabel, color="steelblue"):
     x = range(len(conditions))
     ax.bar(x, values, color=color, edgecolor="black", linewidth=0.5)
     ax.set_xticks(x)
@@ -60,7 +52,7 @@ def plot_bar(ax, conditions: list, values: list, title: str, ylabel: str, color:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Analyze scored results and generate plots")
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         "--input",
         default=PROJECT_ROOT / "results" / "scored.csv",
@@ -84,12 +76,10 @@ def main() -> None:
     df = load_scored(args.input)
     summary = compute_summary(df)
 
-    # Save summary
     args.summary.parent.mkdir(parents=True, exist_ok=True)
     summary.to_csv(args.summary, index=False)
     print(f"Summary saved: {args.summary}")
 
-    # Create plots
     args.plots_dir.mkdir(parents=True, exist_ok=True)
     conditions = summary["condition"].tolist()
 
@@ -103,7 +93,6 @@ def main() -> None:
     hall_path = args.plots_dir / "hallucination_rate_by_condition.png"
     abst_path = args.plots_dir / "abstain_rate_by_condition.png"
 
-    # Save individual plots as requested
     fig1, ax1 = plt.subplots(figsize=(6, 4))
     plot_bar(ax1, conditions, summary["accuracy"].tolist(), "Accuracy by Condition", "Accuracy", "steelblue")
     plt.tight_layout()

@@ -1,8 +1,3 @@
-"""
-Run LLM evaluation under different prompting conditions.
-Generates raw_generations.jsonl for downstream scoring.
-"""
-
 import argparse
 import json
 import os
@@ -14,11 +9,9 @@ from tqdm import tqdm
 
 from providers import get_provider
 
-# Load .env from project root
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
-# Prompt templates for each condition
 CONDITION_PROMPTS = {
     "baseline": (
         "Answer the following question. At the end, provide a confidence score from 0-100.\n\n"
@@ -39,7 +32,6 @@ CONDITION_PROMPTS = {
 
 
 def load_questions(input_path: Path) -> list[dict]:
-    """Load JSONL questions."""
     questions = []
     with open(input_path, encoding="utf-8") as f:
         for line in f:
@@ -50,19 +42,11 @@ def load_questions(input_path: Path) -> list[dict]:
 
 
 def build_prompt(question: str, condition: str) -> str:
-    """Build full prompt for a question under given condition."""
     instruction = CONDITION_PROMPTS.get(condition, CONDITION_PROMPTS["baseline"])
     return f"{instruction}\n\nQuestion: {question}"
 
 
-def run_eval(
-    provider_name: str,
-    model: str | None,
-    condition: str,
-    input_path: Path,
-    output_path: Path,
-) -> None:
-    """Run evaluation and write JSONL output."""
+def run_eval(provider_name, model, condition, input_path, output_path):
     provider = get_provider(name=provider_name, model=model)
     questions = load_questions(input_path)
 
@@ -96,7 +80,7 @@ def run_eval(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run LLM hallucination/abstention evaluation")
+    parser = argparse.ArgumentParser()
     parser.add_argument("--provider", default=None, help="openai | anthropic (default: from env)")
     parser.add_argument("--model", default=None, help="Model name (default: from env)")
     parser.add_argument(
