@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM Hallucination Evaluation</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      line-height: 1.6;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      color: #1a1a1a;
+      background: #fafafa;
+    }
+    h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+    h2 { font-size: 1.15rem; margin-top: 2rem; margin-bottom: 0.5rem; color: #333; }
+    p { margin: 0.5rem 0; color: #444; }
+    a { color: #0066cc; }
+    a:hover { text-decoration: none; }
+    .subtitle { color: #666; font-size: 0.95rem; margin-bottom: 1.5rem; }
+    section { margin-bottom: 2rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      background: #fff;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f5f5f5; font-weight: 600; }
+    .metrics { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
+    .metric { background: #fff; padding: 1rem 1.25rem; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); min-width: 140px; }
+    .metric-label { font-size: 0.8rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric-value { font-size: 1.25rem; font-weight: 600; margin-top: 0.25rem; }
+    .plots { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1rem 0; }
+    .plots img { max-width: 100%; height: auto; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .plots figure { margin: 0; }
+    .plots figcaption { font-size: 0.85rem; color: #666; margin-top: 0.5rem; }
+    .repo-link { display: inline-block; margin-top: 1rem; padding: 0.5rem 1rem; background: #1a1a1a; color: #fff; text-decoration: none; border-radius: 6px; font-size: 0.9rem; }
+    .repo-link:hover { background: #333; }
+    .note { font-size: 0.85rem; color: #666; background: #f5f5f5; padding: 0.75rem 1rem; border-radius: 6px; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>LLM Hallucination & Abstention Evaluation</h1>
+  <p class="subtitle">Measuring when models answer correctly, abstain, or hallucinate under different prompting strategies</p>
+
+  <section>
+    <h2>What it does</h2>
+    <p>LLMs often give confident but wrong answers. In high-stakes settings (medical, legal, education), knowing when <em>not</em> to answer matters as much as answering correctly. This project evaluates three prompting conditions to see how they affect accuracy, abstention, and hallucination rates.</p>
+  </section>
+
+  <section>
+    <h2>Conditions</h2>
+    <p>Each question is run under three prompts:</p>
+    <table>
+      <tr><th>Condition</th><th>Instruction</th></tr>
+      <tr><td>baseline</td><td>Answer the question + confidence 0–100</td></tr>
+      <tr><td>abstain</td><td>Same + "If not sure, say I don't know"</td></tr>
+      <tr><td>cite_or_abstain</td><td>Same + "Only answer if confident and can cite a source, else say I don't know"</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Dataset</h2>
+    <p>60 questions across 4 categories: factual_easy (25), factual_hard (15), ambiguous (10), unanswerable (10). Answers are short (city, date, name) for automated scoring.</p>
+  </section>
+
+  <section>
+    <h2>Scoring</h2>
+    <p><strong>Correct</strong> — Expected answer in response (or model abstains on UNANSWERABLE). <strong>Abstained</strong> — Model says "I don't know" or similar. <strong>Hallucinated</strong> — Wrong answer and didn't abstain.</p>
+  </section>
+
+  <section>
+    <h2>Results</h2>
+    <p>From a sample run (4 records). Run the full pipeline for complete results.</p>
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">baseline accuracy</div><div class="metric-value">100%</div></div>
+      <div class="metric"><div class="metric-label">abstain accuracy</div><div class="metric-value">100%</div></div>
+      <div class="metric"><div class="metric-label">hallucination rate</div><div class="metric-value">0%</div></div>
+    </div>
+    <div class="plots">
+      <figure>
+        <img src="images/accuracy_by_condition.png" alt="Accuracy by condition" width="280" onerror="this.style.display='none'">
+        <figcaption>Accuracy by condition</figcaption>
+      </figure>
+      <figure>
+        <img src="images/hallucination_rate_by_condition.png" alt="Hallucination rate" width="280" onerror="this.style.display='none'">
+        <figcaption>Hallucination rate</figcaption>
+      </figure>
+      <figure>
+        <img src="images/abstain_rate_by_condition.png" alt="Abstain rate" width="280" onerror="this.style.display='none'">
+        <figcaption>Abstain rate</figcaption>
+      </figure>
+    </div>
+    <p class="note">To add the plots, run <code>python src/run_eval.py --all-conditions</code>, then <code>python src/score.py</code> and <code>python src/analyze.py</code>. Copy the PNGs from results/plots/ into docs/images/.</p>
+  </section>
+
+  <section>
+    <h2>How to run</h2>
+    <p>Clone the repo, add your <code>OPENAI_API_KEY</code> to <code>.env</code>, then:</p>
+    <pre style="background:#fff;padding:1rem;border-radius:6px;overflow:auto;font-size:0.85rem;border:1px solid #eee;">cd src
+python run_eval.py --all-conditions
+python score.py
+python analyze.py</pre>
+  </section>
+
+  <a href="https://github.com/loxhness/llm-hallucination-eval" class="repo-link">View on GitHub</a>
+</body>
+</html>
