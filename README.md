@@ -16,6 +16,8 @@ Representative run (same dataset and model family across conditions; verdicts fr
 | Chain of Thought | 82%      | 3%             | 15%     |
 | Confident        | 85%      | 15%            | 0%      |
 
+[Full findings and analysis](docs/findings.md)
+
 <img src="docs/images/hallucination_rate_by_condition.png" alt="Hallucination Rate by Condition" width="320" />
 <img src="docs/images/accuracy_by_condition.png" alt="Accuracy by Condition" width="320" />
 <img src="docs/images/abstain_rate_by_condition.png" alt="Abstain Rate by Condition" width="320" />
