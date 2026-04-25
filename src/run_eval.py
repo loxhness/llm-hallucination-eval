@@ -28,6 +28,17 @@ CONDITION_PROMPTS = {
         "At the end, provide a confidence score from 0-100.\n\n"
         "Format your response as:\nAnswer: <your answer>\nConfidence: <number>"
     ),
+    "chain_of_thought": (
+        "Think step by step before answering. Work through your reasoning first, then state your final answer.\n"
+        "At the end, provide a confidence score from 0-100.\n\n"
+        "Format your response as:\nAnswer: <your final answer>\nConfidence: <number>"
+    ),
+    "confident": (
+        "Always give a direct, confident answer. Never say you don't know or express uncertainty — "
+        "commit to the single most likely answer based on your knowledge.\n"
+        "At the end, provide a confidence score from 0-100.\n\n"
+        "Format your response as:\nAnswer: <your answer>\nConfidence: <number>"
+    ),
 }
 
 
@@ -85,7 +96,7 @@ def main() -> None:
     parser.add_argument("--model", default=None, help="Model name (default: from env)")
     parser.add_argument(
         "--condition",
-        choices=["baseline", "abstain", "cite_or_abstain"],
+        choices=["baseline", "abstain", "cite_or_abstain", "chain_of_thought", "confident"],
         default=None,
         help="Single condition to run (ignored if --all-conditions)",
     )
@@ -111,7 +122,7 @@ def main() -> None:
     if args.all_conditions:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         first = True
-        for cond in ["baseline", "abstain", "cite_or_abstain"]:
+        for cond in ["baseline", "abstain", "cite_or_abstain", "chain_of_thought", "confident"]:
             tmp_path = args.output.parent / f"_tmp_{cond}.jsonl"
             run_eval(
                 provider_name=args.provider,

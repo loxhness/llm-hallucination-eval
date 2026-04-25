@@ -67,7 +67,7 @@ class OpenAIProvider(BaseProvider):
 class AnthropicProvider(BaseProvider):
     def __init__(self, api_key=None, default_model=None):
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
-        self.default_model = default_model or os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
+        self.default_model = default_model or os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
         if not self.api_key:
             raise ValueError("ANTHROPIC_API_KEY not set. Add it to .env or pass api_key.")
 

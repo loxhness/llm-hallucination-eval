@@ -6,6 +6,29 @@ I wanted something that felt closer to AI safety research than a demo app. The p
 
 ---
 
+## Results
+
+Representative run (same dataset and model family across conditions; verdicts from an LLM judge, see `src/score.py`):
+
+| Condition        | Accuracy | Hallucination | Abstain |
+|------------------|----------|----------------|---------|
+| Baseline         | 90%      | 7%             | 3%      |
+| Chain of Thought | 82%      | 3%             | 15%     |
+| Confident        | 85%      | 15%            | 0%      |
+
+![Hallucination Rate by Condition](results/plots/hallucination_rate.png)
+![Accuracy by Condition](results/plots/accuracy_rate.png)
+![Abstain Rate by Condition](results/plots/abstain_rate.png)
+
+- **Baseline:** Highest accuracy with a small hallucination and abstain tail.
+- **Chain of Thought:** Lowest hallucination rate but more abstention and lower overall accuracy.
+- **Confident:** No abstention (by design) and the highest hallucination rate despite middling accuracy.
+
+Forcing the model to always answer doubled hallucination rate vs baseline (7% -> 15%). Chain-of-thought reduced hallucinations but produced the highest confidence in wrong answers (98.8%).
+When chain-of-thought was wrong, it was 98.8% confident in that wrong answer — higher than any other condition.
+
+---
+
 ## Motivation
 
 Language models are increasingly being used in real systems, but they still guess when uncertain. That guessing can look confident, which is where safety and reliability concerns start to matter.
@@ -33,9 +56,9 @@ Each question is labeled as either:
 
 The model is evaluated under different instructions:
 
-- baseline (just answer)
-- abstain if unsure
-- cite or abstain
+- **baseline** — answer with a 0–100 confidence score
+- **chain_of_thought** — reason step by step, then final answer and confidence
+- **confident** — always give a direct, confident answer; never express uncertainty
 
 The system then scores each response as:
 
@@ -87,11 +110,19 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-2. Add your API key to `.env`
+2. Create `.env` from `.env.example` and set your provider + model
 
 ```
-API_KEY=your_key_here
-MODEL_NAME=your_model
+# choose provider
+LLM_PROVIDER=anthropic
+
+# generation model
+ANTHROPIC_API_KEY=your_anthropic_key
+ANTHROPIC_MODEL=claude-haiku-4-5
+
+# judge model (scoring)
+JUDGE_PROVIDER=anthropic
+JUDGE_MODEL=claude-haiku-4-5
 ```
 
 3. Run the pipeline
@@ -100,6 +131,12 @@ MODEL_NAME=your_model
 python src/run_eval.py
 python src/score.py
 python src/analyze.py
+```
+
+Optional: run all conditions in one pass:
+
+```
+python src/run_eval.py --all-conditions
 ```
 
 Results will appear in the `results/` folder.
@@ -111,7 +148,7 @@ Results will appear in the `results/` folder.
 This is a small exploratory experiment, not a formal benchmark.
 
 - Dataset is hand-written and small
-- String matching scoring is imperfect
+- Responses are scored with an **LLM-as-judge** (`score.py`); like any judge, it can disagree with humans or be biased by phrasing
 - Confidence is self-reported by the model
 - Prompting strategies are simple
 
@@ -119,13 +156,12 @@ The goal is to build intuition and a framework for testing behavior, not to clai
 
 ---
 
-## Future work
+## Roadmap
 
 Things I’d like to add:
 
 - larger curated dataset
 - cross-model comparisons
-- better evaluation using LLM-as-judge
 - adversarial prompts
 - calibration curves
 - automated reporting
