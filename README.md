@@ -1,8 +1,9 @@
 # LLM Hallucination Evaluation
 
-This project is a small experimental framework I built to study how large language models behave when they don’t actually know an answer. Instead of just measuring accuracy, the goal is to look at hallucination, uncertainty, and whether prompting can push a model toward admitting “I don’t know” instead of guessing.
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
+![Built with Anthropic](https://img.shields.io/badge/Built%20with-Anthropic-5A67D8)
 
-I wanted something that felt closer to AI safety research than a demo app. The project runs controlled experiments, scores model behavior, and generates simple analysis so I can compare how different prompting strategies affect reliability.
+A small experimental framework to measure when LLMs answer correctly, abstain, or hallucinate under different prompting conditions.
 
 ---
 
@@ -18,9 +19,9 @@ Representative run (same dataset and model family across conditions; verdicts fr
 
 [Full findings and analysis](docs/findings.md)
 
-<img src="docs/images/hallucination_rate_by_condition.png" alt="Hallucination Rate by Condition" width="320" />
-<img src="docs/images/accuracy_by_condition.png" alt="Accuracy by Condition" width="320" />
-<img src="docs/images/abstain_rate_by_condition.png" alt="Abstain Rate by Condition" width="320" />
+<img src="docs/images/hallucination_rate_by_condition.png" alt="Hallucination Rate by Condition" width="240" />
+<img src="docs/images/accuracy_by_condition.png" alt="Accuracy by Condition" width="240" />
+<img src="docs/images/abstain_rate_by_condition.png" alt="Abstain Rate by Condition" width="240" />
 
 - **Baseline:** Highest accuracy with a small hallucination and abstain tail.
 - **Chain of Thought:** Lowest hallucination rate but more abstention and lower overall accuracy.
@@ -32,6 +33,8 @@ When chain-of-thought was wrong, it was 98.8% confident in that wrong answer —
 ---
 
 ## Motivation
+
+I built this project to study how large language models behave when they do not actually know an answer. Instead of only measuring accuracy, I wanted to quantify hallucination, uncertainty, and whether prompting can push models toward admitting "I don't know" instead of guessing.
 
 Language models are increasingly being used in real systems, but they still guess when uncertain. That guessing can look confident, which is where safety and reliability concerns start to matter.
 
@@ -156,8 +159,6 @@ This is a small exploratory experiment, not a formal benchmark.
 
 The goal is to build intuition and a framework for testing behavior, not to claim definitive conclusions.
 
----
-
 ## Roadmap
 
 Things I’d like to add:
@@ -167,6 +168,16 @@ Things I’d like to add:
 - adversarial prompts
 - calibration curves
 - automated reporting
+
+---
+
+## What I learned
+
+I went into this expecting chain-of-thought prompting to be a straightforward win: more reasoning should mean fewer mistakes. The data said otherwise. Chain-of-thought cut the hallucination rate, but it also made the model dramatically more confident in the answers it got wrong (98.8% vs 45% in baseline).
+
+The confident condition result was less surprising but still striking to see measured. Telling a model to never express uncertainty does not make it more reliable, it just makes it hide when it is guessing, and hallucination rate doubled.
+
+The broader takeaway for me is that prompting strategies involve real tradeoffs that are not obvious until you measure them. "Think step by step" and "always be confident" both sound reasonable, but in practice they shift accuracy, hallucination, and abstention in different directions.
 
 ---
 
