@@ -39,16 +39,33 @@ def compute_summary(df):
     return pd.DataFrame(rows)
 
 
-def plot_bar(ax, conditions, values, title, ylabel, color="steelblue"):
+def plot_bar(ax, conditions, values, title, ylabel, color="steelblue", bar_width=0.8, y_max=1.0):
     x = range(len(conditions))
-    ax.bar(x, values, color=color, edgecolor="black", linewidth=0.5)
+    if isinstance(color, (list, tuple)):
+        colors = color
+    else:
+        colors = [color] * len(conditions)
+    ax.bar(x, values, width=bar_width, color=colors, edgecolor="black", linewidth=0.5)
     ax.set_xticks(x)
     ax.set_xticklabels(conditions, rotation=15, ha="right")
     ax.set_ylabel(ylabel)
     ax.set_title(title)
-    ax.set_ylim(0, 1.0)
+    ax.set_ylim(0, y_max)
+    ax.grid(False)
     for i, v in enumerate(values):
-        ax.text(i, v + 0.02, f"{v:.2f}", ha="center", va="bottom", fontsize=9)
+        ax.text(i, v + 0.02, f"{v:.2f}", ha="center", va="bottom", fontsize=12)
+
+
+def hallucination_colors(conditions):
+    return ["red" if c == "confident" else "orange" for c in conditions]
+
+
+def accuracy_colors(conditions):
+    return ["green" if c == "baseline" else "steelblue" for c in conditions]
+
+
+def abstain_colors(conditions):
+    return ["purple" if c == "chain_of_thought" else "seagreen" for c in conditions]
 
 
 def main() -> None:
@@ -84,9 +101,35 @@ def main() -> None:
     conditions = summary["condition"].tolist()
 
     fig, axes = plt.subplots(1, 3, figsize=(12, 4))
-    plot_bar(axes[0], conditions, summary["accuracy"].tolist(), "Accuracy by Condition", "Accuracy", "steelblue")
-    plot_bar(axes[1], conditions, summary["hallucination_rate"].tolist(), "Hallucination Rate by Condition", "Hallucination Rate", "coral")
-    plot_bar(axes[2], conditions, summary["abstain_rate"].tolist(), "Abstain Rate by Condition", "Abstain Rate", "seagreen")
+    plot_bar(
+        axes[0],
+        conditions,
+        summary["accuracy"].tolist(),
+        "Baseline Delivers Highest Accuracy",
+        "Accuracy",
+        accuracy_colors(conditions),
+        bar_width=0.95,
+    )
+    plot_bar(
+        axes[1],
+        conditions,
+        summary["hallucination_rate"].tolist(),
+        "Forcing Confidence Doubles Hallucination Rate",
+        "Hallucination Rate",
+        hallucination_colors(conditions),
+        bar_width=0.95,
+        y_max=0.4,
+    )
+    plot_bar(
+        axes[2],
+        conditions,
+        summary["abstain_rate"].tolist(),
+        "Chain-of-Thought Raises Abstention",
+        "Abstain Rate",
+        abstain_colors(conditions),
+        bar_width=0.95,
+        y_max=0.4,
+    )
 
     plt.tight_layout()
     acc_path = args.plots_dir / "accuracy_by_condition.png"
@@ -94,19 +137,45 @@ def main() -> None:
     abst_path = args.plots_dir / "abstain_rate_by_condition.png"
 
     fig1, ax1 = plt.subplots(figsize=(6, 4))
-    plot_bar(ax1, conditions, summary["accuracy"].tolist(), "Accuracy by Condition", "Accuracy", "steelblue")
+    plot_bar(
+        ax1,
+        conditions,
+        summary["accuracy"].tolist(),
+        "Baseline Delivers Highest Accuracy",
+        "Accuracy",
+        accuracy_colors(conditions),
+        bar_width=0.95,
+    )
     plt.tight_layout()
     fig1.savefig(acc_path, dpi=150, bbox_inches="tight")
     plt.close(fig1)
 
     fig2, ax2 = plt.subplots(figsize=(6, 4))
-    plot_bar(ax2, conditions, summary["hallucination_rate"].tolist(), "Hallucination Rate by Condition", "Hallucination Rate", "coral")
+    plot_bar(
+        ax2,
+        conditions,
+        summary["hallucination_rate"].tolist(),
+        "Forcing Confidence Doubles Hallucination Rate",
+        "Hallucination Rate",
+        hallucination_colors(conditions),
+        bar_width=0.95,
+        y_max=0.4,
+    )
     plt.tight_layout()
     fig2.savefig(hall_path, dpi=150, bbox_inches="tight")
     plt.close(fig2)
 
     fig3, ax3 = plt.subplots(figsize=(6, 4))
-    plot_bar(ax3, conditions, summary["abstain_rate"].tolist(), "Abstain Rate by Condition", "Abstain Rate", "seagreen")
+    plot_bar(
+        ax3,
+        conditions,
+        summary["abstain_rate"].tolist(),
+        "Chain-of-Thought Raises Abstention",
+        "Abstain Rate",
+        abstain_colors(conditions),
+        bar_width=0.95,
+        y_max=0.4,
+    )
     plt.tight_layout()
     fig3.savefig(abst_path, dpi=150, bbox_inches="tight")
     plt.close(fig3)
