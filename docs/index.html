@@ -47,7 +47,7 @@
   </style>
 </head>
 <body>
-  <h1>LLM Hallucination & Abstention Evaluation</h1>
+  <h1>LLM Hallucination Evaluation</h1>
   <p class="subtitle">Measuring when models answer correctly, abstain, or hallucinate under different prompting strategies</p>
 
   <section>
@@ -60,9 +60,9 @@
     <p>Each question is run under three prompts:</p>
     <table>
       <tr><th>Condition</th><th>Instruction</th></tr>
-      <tr><td>baseline</td><td>Answer the question + confidence 0–100</td></tr>
-      <tr><td>abstain</td><td>Same + "If not sure, say I don't know"</td></tr>
-      <tr><td>cite_or_abstain</td><td>Same + "Only answer if confident and can cite a source, else say I don't know"</td></tr>
+      <tr><td>baseline</td><td>Answer directly and provide confidence (0-100)</td></tr>
+      <tr><td>chain_of_thought</td><td>Reason step by step, then give final answer and confidence</td></tr>
+      <tr><td>confident</td><td>Always answer confidently; never express uncertainty</td></tr>
     </table>
   </section>
 
@@ -73,17 +73,19 @@
 
   <section>
     <h2>Scoring</h2>
-    <p><strong>Correct</strong> — Expected answer in response (or model abstains on UNANSWERABLE). <strong>Abstained</strong> — Model says "I don't know" or similar. <strong>Hallucinated</strong> — Wrong answer and didn't abstain.</p>
+    <p><strong>Correct</strong> — Expected answer in response (or model abstains on UNANSWERABLE). <strong>Abstained</strong> — Model says "I don't know" or similar. <strong>Hallucinated</strong> — Wrong answer and didn't abstain. Verdicts are produced by an LLM-as-judge in <code>src/score.py</code>.</p>
   </section>
 
   <section>
     <h2>Results</h2>
-    <p>From a sample run (4 records). Run the full pipeline for complete results.</p>
-    <div class="metrics">
-      <div class="metric"><div class="metric-label">baseline accuracy</div><div class="metric-value">100%</div></div>
-      <div class="metric"><div class="metric-label">abstain accuracy</div><div class="metric-value">100%</div></div>
-      <div class="metric"><div class="metric-label">hallucination rate</div><div class="metric-value">0%</div></div>
-    </div>
+    <p>Representative run (same dataset and model family across conditions):</p>
+    <table>
+      <tr><th>Condition</th><th>Accuracy</th><th>Hallucination</th><th>Abstain</th></tr>
+      <tr><td>Baseline</td><td>90%</td><td>7%</td><td>3%</td></tr>
+      <tr><td>Chain of Thought</td><td>82%</td><td>3%</td><td>15%</td></tr>
+      <tr><td>Confident</td><td>85%</td><td>15%</td><td>0%</td></tr>
+    </table>
+    <p>When chain-of-thought was wrong, it was 98.8% confident in that wrong answer - higher than any other condition.</p>
     <div class="plots">
       <figure>
         <img src="images/accuracy_by_condition.png" alt="Accuracy by condition" width="280" onerror="this.style.display='none'">
@@ -98,16 +100,15 @@
         <figcaption>Abstain rate</figcaption>
       </figure>
     </div>
-    <p class="note">To add the plots, run <code>python src/run_eval.py --all-conditions</code>, then <code>python src/score.py</code> and <code>python src/analyze.py</code>. Copy the PNGs from results/plots/ into docs/images/.</p>
+    <p class="note">To refresh the plots, run <code>python src/run_eval.py --all-conditions</code>, then <code>python src/score.py</code> and <code>python src/analyze.py</code>. Copy the PNGs from <code>results/plots/</code> into <code>docs/images/</code> so GitHub Pages can serve them.</p>
   </section>
 
   <section>
     <h2>How to run</h2>
-    <p>Clone the repo, add your <code>OPENAI_API_KEY</code> to <code>.env</code>, then:</p>
-    <pre style="background:#fff;padding:1rem;border-radius:6px;overflow:auto;font-size:0.85rem;border:1px solid #eee;">cd src
-python run_eval.py --all-conditions
-python score.py
-python analyze.py</pre>
+    <p>Create <code>.env</code> from <code>.env.example</code> and set provider/model values, then run:</p>
+    <pre style="background:#fff;padding:1rem;border-radius:6px;overflow:auto;font-size:0.85rem;border:1px solid #eee;">python src/run_eval.py --all-conditions
+python src/score.py
+python src/analyze.py</pre>
   </section>
 
   <a href="https://github.com/loxhness/llm-hallucination-eval" class="repo-link">View on GitHub</a>
