@@ -16,9 +16,9 @@ Representative run (same dataset and model family across conditions; verdicts fr
 | Chain of Thought | 82%      | 3%             | 15%     |
 | Confident        | 85%      | 15%            | 0%      |
 
-![Hallucination Rate by Condition](results/plots/hallucination_rate_by_condition.png)
-![Accuracy by Condition](results/plots/accuracy_by_condition.png)
-![Abstain Rate by Condition](results/plots/abstain_rate_by_condition.png)
+![Hallucination Rate by Condition](docs/images/hallucination_rate_by_condition.png)
+![Accuracy by Condition](docs/images/accuracy_by_condition.png)
+![Abstain Rate by Condition](docs/images/abstain_rate_by_condition.png)
 
 - **Baseline:** Highest accuracy with a small hallucination and abstain tail.
 - **Chain of Thought:** Lowest hallucination rate but more abstention and lower overall accuracy.
