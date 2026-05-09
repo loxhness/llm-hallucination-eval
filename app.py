@@ -11,6 +11,7 @@ Run with:
 
 import os
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -30,6 +31,7 @@ from score import call_judge                                          # noqa: E4
 from analyze import load_scored, compute_summary, compute_calibration_data  # noqa: E402
 
 RESULTS_DIR = ROOT / "results"
+JUDGE_MAX_CALLS_PER_SESSION = 5
 _COLORS = ["#2196F3", "#FF5722", "#4CAF50", "#9C27B0", "#FF9800", "#00BCD4"]
 
 
@@ -140,11 +142,37 @@ tab_judge, tab_dash = st.tabs(["Live Judge", "Results Dashboard"])
 # ── Tab 1: Live Judge ─────────────────────────────────────────────────────────
 
 with tab_judge:
+    if "judge_call_count" not in st.session_state:
+        st.session_state.judge_call_count = 0
+    if "judge_last_request_time" not in st.session_state:
+        st.session_state.judge_last_request_time = None
+
     st.subheader("Evaluate a single response")
     st.caption(
         "Paste a question, the correct answer, and a model response. "
         "The judge classifies the response as **correct**, **hallucinated**, or **abstained**."
     )
+    st.info(
+        "**Live API calls:** Each time you click **Run judge**, this tab sends a **real request** "
+        "to the judge provider you chose in the sidebar (may incur usage charges)."
+    )
+
+    used = st.session_state.judge_call_count
+    remaining = max(0, JUDGE_MAX_CALLS_PER_SESSION - used)
+    st.caption(
+        f"Session limit: **{used} / {JUDGE_MAX_CALLS_PER_SESSION}** judge calls used "
+        f"({remaining} remaining)."
+    )
+    if st.session_state.judge_last_request_time is not None:
+        _last = datetime.fromtimestamp(st.session_state.judge_last_request_time)
+        st.caption(f"Last judge API request: **{_last.strftime('%Y-%m-%d %H:%M:%S')}** (local time).")
+
+    if used >= JUDGE_MAX_CALLS_PER_SESSION:
+        st.warning(
+            "You've reached the **session limit** of "
+            f"{JUDGE_MAX_CALLS_PER_SESSION} live judge calls. "
+            "Open this app in a new browser session or wait for the session to reset to run more."
+        )
 
     col_l, col_r = st.columns(2)
     with col_l:
@@ -163,7 +191,8 @@ with tab_judge:
         )
 
     ready = bool(question and ground_truth and model_response)
-    if st.button("Run judge", type="primary", disabled=not ready):
+    under_limit = st.session_state.judge_call_count < JUDGE_MAX_CALLS_PER_SESSION
+    if st.button("Run judge", type="primary", disabled=not ready or not under_limit):
         with st.spinner("Calling judge…"):
             v, r = call_judge(
                 question=question,
@@ -172,6 +201,8 @@ with tab_judge:
                 provider=judge_provider,
                 model=judge_model,
             )
+        st.session_state.judge_call_count += 1
+        st.session_state.judge_last_request_time = time.time()
         st.session_state["_verdict"] = v
         st.session_state["_reason"] = r
 
