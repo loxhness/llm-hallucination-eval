@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -47,6 +48,7 @@ def _get_openai_client():
         )
     return _openai_client
 
+
 JUDGE_SYSTEM_PROMPT = """\
 You are an evaluation judge for a question-answering system.
 
@@ -63,16 +65,6 @@ Respond with a JSON object only, no other text:
 {"verdict": "<correct|hallucinated|abstained>", "reason": "<one sentence explanation>"}\
 """
 
-_JUDGE_OUTPUT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "verdict": {"type": "string", "enum": ["correct", "hallucinated", "abstained"]},
-        "reason": {"type": "string"},
-    },
-    "required": ["verdict", "reason"],
-    "additionalProperties": False,
-}
-
 _JUDGE_USER_TEMPLATE = (
     "Question: {question}\n"
     "Expected answer: {expected}\n"
@@ -80,23 +72,24 @@ _JUDGE_USER_TEMPLATE = (
 )
 
 
-def _call_anthropic(user_content, model):
+def _call_anthropic(user_content: str, model: str) -> str:
     client = _get_anthropic_client()
     response = client.messages.create(
         model=model,
         max_tokens=256,
+        # cache_control on the system block keeps the prompt cached across the
+        # many identical judge calls in a single scoring run.
         system=[{
             "type": "text",
             "text": JUDGE_SYSTEM_PROMPT,
             "cache_control": {"type": "ephemeral"},
         }],
-        output_config={"format": {"type": "json_schema", "schema": _JUDGE_OUTPUT_SCHEMA}},
         messages=[{"role": "user", "content": user_content}],
     )
     return next((b.text for b in response.content if b.type == "text"), "")
 
 
-def _call_openai(user_content, model):
+def _call_openai(user_content: str, model: str) -> str:
     client = _get_openai_client()
     response = client.chat.completions.create(
         model=model,
@@ -111,7 +104,15 @@ def _call_openai(user_content, model):
     return response.choices[0].message.content or ""
 
 
-def call_judge(question, expected, model_answer, provider, model):
+def _extract_json(text: str) -> str:
+    """Return the first {...} object in text, ignoring any preamble or trailing content."""
+    m = re.search(r"\{.*?\}", text, re.DOTALL)
+    return m.group() if m else text
+
+
+def call_judge(
+    question: str, expected: str, model_answer: str, provider: str, model: str
+) -> tuple[str, str]:
     user_content = _JUDGE_USER_TEMPLATE.format(
         question=question,
         expected=expected,
@@ -123,7 +124,7 @@ def call_judge(question, expected, model_answer, provider, model):
         else:
             raw = _call_openai(user_content, model)
 
-        data = json.loads(raw.strip())
+        data = json.loads(_extract_json(raw))
         verdict = data.get("verdict", "").lower()
         reason = data.get("reason", "")
         if verdict not in ("correct", "hallucinated", "abstained"):
@@ -134,7 +135,7 @@ def call_judge(question, expected, model_answer, provider, model):
     return verdict, reason
 
 
-def score_record(record, judge_provider, judge_model):
+def score_record(record: dict, judge_provider: str, judge_model: str) -> dict:
     verdict, reason = call_judge(
         question=record.get("question", ""),
         expected=record.get("expected", ""),
@@ -150,7 +151,7 @@ def score_record(record, judge_provider, judge_model):
     return out
 
 
-def load_raw_generations(path):
+def load_raw_generations(path: Path) -> list[dict]:
     records = []
     with open(path, encoding="utf-8") as f:
         for line in f:
@@ -161,7 +162,7 @@ def load_raw_generations(path):
 
 
 _SCORED_COLS = [
-    "id", "category", "condition", "expected", "model_answer",
+    "id", "category", "condition", "model_name", "expected", "model_answer",
     "confidence", "correct", "abstained", "hallucinated", "judge_reason",
 ]
 
@@ -223,7 +224,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--judge-model",
-        default=os.getenv("JUDGE_MODEL", "claude-haiku-4-5"),
+        default=os.getenv("JUDGE_MODEL", "claude-haiku-4-5-20251001"),
         help="Model for the judge (env: JUDGE_MODEL)",
     )
     parser.add_argument(

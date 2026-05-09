@@ -3,6 +3,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import IO
 
 from dotenv import load_dotenv
 from tqdm import tqdm
@@ -41,6 +42,8 @@ CONDITION_PROMPTS = {
     ),
 }
 
+ALL_CONDITIONS = ["baseline", "abstain", "cite_or_abstain", "chain_of_thought", "confident"]
+
 
 def load_questions(input_path: Path) -> list[dict]:
     questions = []
@@ -57,53 +60,81 @@ def build_prompt(question: str, condition: str) -> str:
     return f"{instruction}\n\nQuestion: {question}"
 
 
-def run_eval(provider_name, model, condition, input_path, output_path):
+def _parse_model_spec(spec: str, default_provider: str) -> tuple[str, str]:
+    """Parse 'provider:model' or bare 'model' into (provider, model)."""
+    if ":" in spec:
+        provider, _, model = spec.partition(":")
+        return provider, model
+    return default_provider, spec
+
+
+def run_eval(
+    provider_name: str,
+    model: str | None,
+    condition: str,
+    input_path: Path,
+    out_file: IO[str],
+    limit: int | None = None,
+) -> None:
     provider = get_provider(name=provider_name, model=model)
     questions = load_questions(input_path)
+    if limit is not None:
+        questions = questions[:limit]
+    resolved_model = model or provider.default_model
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    for q in tqdm(questions, desc=f"{resolved_model} / {condition}", leave=True):
+        prompt = build_prompt(q["question"], condition)
+        try:
+            resp = provider.complete(prompt, model=model)
+            resp_text = resp.raw_text
+            resp_model_answer = resp.model_answer
+            resp_confidence = resp.confidence
+        except Exception as e:
+            resp_text = f"[ERROR: {e}]"
+            resp_model_answer = resp_text
+            resp_confidence = None
 
-    with open(output_path, "w", encoding="utf-8") as out:
-        for q in tqdm(questions, desc=f"Evaluating ({condition})"):
-            prompt = build_prompt(q["question"], condition)
-            try:
-                resp = provider.complete(prompt, model=model)
-                resp_text = resp.raw_text
-                resp_model_answer = resp.model_answer
-                resp_confidence = resp.confidence
-            except Exception as e:
-                resp_text = f"[ERROR: {e}]"
-                resp_model_answer = resp_text
-                resp_confidence = None
-
-            record = {
-                "id": q["id"],
-                "category": q["category"],
-                "condition": condition,
-                "question": q["question"],
-                "expected": q["answer"],
-                "model_answer": resp_model_answer,
-                "confidence": resp_confidence,
-                "raw_text": resp_text,
-                "timestamp": datetime.utcnow().isoformat() + "Z",
-            }
-            out.write(json.dumps(record, ensure_ascii=False) + "\n")
+        record = {
+            "id": q["id"],
+            "category": q["category"],
+            "condition": condition,
+            "model_name": resolved_model,
+            "question": q["question"],
+            "expected": q["answer"],
+            "model_answer": resp_model_answer,
+            "confidence": resp_confidence,
+            "raw_text": resp_text,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+        out_file.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--provider", default=None, help="openai | anthropic (default: from env)")
-    parser.add_argument("--model", default=None, help="Model name (default: from env)")
+    parser.add_argument("--model", default=None, help="Single model name (default: from env)")
+    parser.add_argument(
+        "--models",
+        nargs="+",
+        metavar="[PROVIDER:]MODEL",
+        help=(
+            "One or more models to evaluate in the same run. "
+            "Each entry is either a bare model name (uses --provider) "
+            "or 'provider:model' for explicit routing, e.g. "
+            "'anthropic:claude-haiku-4-5-20251001 openai:gpt-4o-mini'. "
+            "Overrides --model when provided."
+        ),
+    )
     parser.add_argument(
         "--condition",
-        choices=["baseline", "abstain", "cite_or_abstain", "chain_of_thought", "confident"],
+        choices=ALL_CONDITIONS,
         default=None,
         help="Single condition to run (ignored if --all-conditions)",
     )
     parser.add_argument(
         "--all-conditions",
         action="store_true",
-        help="Run all 3 conditions and concatenate into one output file",
+        help="Run all conditions for every specified model.",
     )
     parser.add_argument(
         "--input",
@@ -117,38 +148,44 @@ def main() -> None:
         type=Path,
         help="Output JSONL generations",
     )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Only evaluate the first N questions from the dataset (for quick runs).",
+    )
     args = parser.parse_args()
 
-    if args.all_conditions:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        first = True
-        for cond in ["baseline", "abstain", "cite_or_abstain", "chain_of_thought", "confident"]:
-            tmp_path = args.output.parent / f"_tmp_{cond}.jsonl"
-            run_eval(
-                provider_name=args.provider,
-                model=args.model,
-                condition=cond,
-                input_path=args.input,
-                output_path=tmp_path,
-            )
-            with open(tmp_path, encoding="utf-8") as f:
-                content = f.read()
-            tmp_path.unlink()
-            mode = "w" if first else "a"
-            with open(args.output, mode, encoding="utf-8") as out:
-                out.write(content)
-            first = False
-        print(f"Done. Output: {args.output}")
+    default_provider = args.provider or os.getenv("LLM_PROVIDER", "openai")
+
+    if args.models:
+        model_specs = [_parse_model_spec(s, default_provider) for s in args.models]
     else:
-        cond = args.condition or "baseline"
-        run_eval(
-            provider_name=args.provider,
-            model=args.model,
-            condition=cond,
-            input_path=args.input,
-            output_path=args.output,
-        )
-        print(f"Done. Output: {args.output}")
+        model_specs = [(default_provider, args.model)]
+
+    conditions = ALL_CONDITIONS if args.all_conditions else [args.condition or "baseline"]
+
+    total = len(model_specs) * len(conditions)
+    print(
+        f"Running {len(model_specs)} model(s) × {len(conditions)} condition(s) "
+        f"= {total} eval run(s). Output: {args.output}"
+    )
+
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with open(args.output, "w", encoding="utf-8") as out_file:
+        for provider_name, model in model_specs:
+            for condition in conditions:
+                run_eval(
+                    provider_name,
+                    model,
+                    condition,
+                    args.input,
+                    out_file,
+                    limit=args.limit,
+                )
+
+    print(f"Done. Output: {args.output}")
 
 
 if __name__ == "__main__":
