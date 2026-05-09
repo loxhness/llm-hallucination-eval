@@ -5,14 +5,15 @@
 
 This project is a small framework for measuring how language models behave when they don't know something. Rather than treating accuracy as the only signal worth tracking, it quantifies three distinct outcomes—correct answers, hallucinations, and abstentions—across five prompting strategies that are each designed to push the model in a different direction. A second language model acts as the judge, reading each question, its ground-truth answer, and the model's response, then returning a structured verdict with reasoning. The results are collected into a Streamlit dashboard that shows per-model comparisons, confidence calibration curves, and Brier scores, and the full pipeline runs with a single command. It exists because model reliability feels like a tractable entry point into AI safety: you can design a controlled experiment, watch specific failure modes appear in real output, and measure exactly where a model starts guessing confidently when it has no basis to do so.
 
+**Live app:** [uzair-llm-hallucination-framework.streamlit.app](https://uzair-llm-hallucination-framework.streamlit.app/)
+
 ---
 
 ## Preview
 
-<!-- Replace with a real screenshot after running the app:
-     ![Streamlit dashboard](docs/images/app_screenshot.png)         -->
+Open the **[hosted dashboard](https://uzair-llm-hallucination-framework.streamlit.app/)** to explore per-condition metrics and plots without installing anything. To run locally after generating `results/`, use `python -m streamlit run app.py`.
 
-> *Screenshot placeholder — run `streamlit run app.py` after generating results to see the dashboard.*
+![LLM Hallucination Framework — Streamlit dashboard](docs/images/app_screenshot.png)
 
 ---
 
@@ -60,8 +61,10 @@ python eval.py --dataset data/questions_truthfulqa.jsonl --all-conditions
 To explore results interactively:
 
 ```bash
-streamlit run app.py
+python -m streamlit run app.py
 ```
+
+The same UI is deployed at **[uzair-llm-hallucination-framework.streamlit.app](https://uzair-llm-hallucination-framework.streamlit.app/)**.
 
 ---
 
@@ -93,7 +96,13 @@ Every generation prompt asks the model to provide a confidence score from 0 to 1
 
 ## Results
 
-*Results will be added here after running experiments. The most informative comparison is across prompting conditions for the same model—specifically, how much the `confident` condition raises hallucination rate relative to `baseline`, and whether `chain_of_thought` improves or degrades confidence calibration. Run `python eval.py --all-conditions` to generate the `results/summary.csv` that populates the dashboard.*
+Experiments below used **TruthfulQA** (proportionally sampled subset; **865** controlled trials = 173 questions × five prompting conditions × one evaluated model). Metrics come from the LLM-as-judge pipeline summarized in `results/summary.csv` and visualized in the [live dashboard](https://uzair-llm-hallucination-framework.streamlit.app/).
+
+- **Hallucination vs prompting:** **`cite_or_abstain`** cut the hallucination rate by **55%** versus **`baseline`** (**26% → 11.6%**). Asking the model to cite a source type or abstain materially reduces confident wrong answers compared with answering directly with a confidence score.
+- **Stress test:** **`confident`** prompting (never admit uncertainty) produced the **highest hallucination rate at 41%**, illustrating how forbidding abstention shifts the model toward fabricated answers.
+- **Accuracy and calibration:** Overall **accuracy on TruthfulQA was 59.3%**, with a **Brier score of 0.2542** (self-reported confidence vs. correctness; lower is better).
+
+To reproduce or extend the run: `python eval.py --dataset data/questions_truthfulqa.jsonl --all-conditions`.
 
 ---
 
