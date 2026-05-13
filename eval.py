@@ -139,17 +139,18 @@ def main() -> None:
         ),
     )
 
-    # Scoring
+    # Scoring (defaults are independent of --provider / LLM_PROVIDER so OpenAI runs are not judged
+    # with a Claude model id on the wrong API.)
     parser.add_argument(
         "--judge-provider",
-        default=os.getenv("JUDGE_PROVIDER"),
+        default=os.getenv("JUDGE_PROVIDER", "anthropic"),
         choices=["anthropic", "openai"],
-        help="Provider for the LLM judge (env: JUDGE_PROVIDER).",
+        help="Provider for the LLM judge (default: env JUDGE_PROVIDER or anthropic).",
     )
     parser.add_argument(
         "--judge-model",
-        default=os.getenv("JUDGE_MODEL"),
-        help="Model for the LLM judge (env: JUDGE_MODEL).",
+        default=os.getenv("JUDGE_MODEL", "claude-haiku-4-5-20251001"),
+        help="Model for the LLM judge (default: env JUDGE_MODEL or claude-haiku-4-5-20251001).",
     )
     parser.add_argument(
         "--resume",
@@ -202,11 +203,18 @@ def main() -> None:
         _run("1 / 3 — generate responses  (run_eval.py)", cmd1)
 
     # ── 2 / 3  score ─────────────────────────────────────────────────────────
-    cmd2 = [py, "src/score.py", "--input", str(raw_path), "--output", str(scored_path)]
-    if args.judge_provider:
-        cmd2 += ["--judge-provider", args.judge_provider]
-    if args.judge_model:
-        cmd2 += ["--judge-model", args.judge_model]
+    cmd2 = [
+        py,
+        "src/score.py",
+        "--input",
+        str(raw_path),
+        "--output",
+        str(scored_path),
+        "--judge-provider",
+        args.judge_provider,
+        "--judge-model",
+        args.judge_model,
+    ]
     if args.resume:
         cmd2 += ["--resume"]
 

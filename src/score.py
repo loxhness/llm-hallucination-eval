@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import re
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -110,6 +111,24 @@ def _extract_json(text: str) -> str:
     return m.group() if m else text
 
 
+def _is_judge_auth_failure(exc: BaseException) -> bool:
+    """401/403 or provider-specific auth messages from the judge API."""
+    s = str(exc).lower()
+    return (
+        "401" in s
+        or "403" in s
+        or "authentication_error" in s
+        or "invalid x-api-key" in s
+        or "incorrect api key" in s
+        or "invalid_api_key" in s
+        or "permission_denied" in s
+    )
+
+
+class JudgeAuthenticationError(RuntimeError):
+    """Judge API rejected credentials (fix .env keys for the judge provider)."""
+
+
 def call_judge(
     question: str, expected: str, model_answer: str, provider: str, model: str
 ) -> tuple[str, str]:
@@ -130,6 +149,12 @@ def call_judge(
         if verdict not in ("correct", "hallucinated", "abstained"):
             verdict, reason = "hallucinated", f"Unexpected verdict from judge: {raw[:120]}"
     except Exception as exc:
+        if _is_judge_auth_failure(exc):
+            raise JudgeAuthenticationError(
+                f"Judge ({provider}) authentication failed: {exc}\n"
+                "Fix the API key in .env for that provider, or use a different judge "
+                "(e.g. --judge-provider openai --judge-model gpt-4o-mini if only OpenAI is valid)."
+            ) from exc
         verdict, reason = "hallucinated", f"Judge error: {exc}"
 
     return verdict, reason
@@ -202,6 +227,22 @@ def _merge_saved_verdict(raw: dict, verdicts: dict) -> dict:
     return out
 
 
+def _require_judge_api_key(provider: str) -> None:
+    if provider == "anthropic":
+        key = (os.getenv("ANTHROPIC_API_KEY") or "").strip()
+        if not key:
+            raise SystemExit(
+                "Missing ANTHROPIC_API_KEY in .env (required for --judge-provider anthropic). "
+                "Add your Anthropic key, or run with --judge-provider openai --judge-model gpt-4o-mini."
+            )
+    else:
+        key = (os.getenv("OPENAI_API_KEY") or "").strip()
+        if not key:
+            raise SystemExit(
+                "Missing OPENAI_API_KEY in .env (required for --judge-provider openai)."
+            )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Score raw generations using an LLM judge.")
     parser.add_argument(
@@ -218,9 +259,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--judge-provider",
-        default=os.getenv("JUDGE_PROVIDER", os.getenv("LLM_PROVIDER", "anthropic")),
+        default=os.getenv("JUDGE_PROVIDER", "anthropic"),
         choices=["anthropic", "openai"],
-        help="LLM provider for the judge (env: JUDGE_PROVIDER)",
+        help="LLM provider for the judge (env: JUDGE_PROVIDER). Does not inherit LLM_PROVIDER.",
     )
     parser.add_argument(
         "--judge-model",
@@ -233,6 +274,21 @@ def main() -> None:
         help="Reuse judge verdicts from existing --output CSV for matching id+condition (skip API).",
     )
     args = parser.parse_args()
+
+    jm = (args.judge_model or "").lower()
+    if args.judge_provider == "openai" and ("claude" in jm or "anthropic" in jm):
+        raise SystemExit(
+            "Judge config error: --judge-provider openai but --judge-model looks like an Anthropic "
+            f"model ({args.judge_model!r}). Use an OpenAI model (e.g. gpt-4o-mini) or set "
+            "--judge-provider anthropic."
+        )
+    if args.judge_provider == "anthropic" and jm and ("gpt-" in jm or "o1" in jm or "o3" in jm):
+        raise SystemExit(
+            "Judge config error: --judge-provider anthropic but --judge-model looks like an OpenAI "
+            f"model ({args.judge_model!r}). Use a Claude model id or --judge-provider openai."
+        )
+
+    _require_judge_api_key(args.judge_provider)
 
     records = load_raw_generations(args.input)
     saved = {}
@@ -258,7 +314,11 @@ def main() -> None:
             if key in saved:
                 scored.append(_merge_saved_verdict(r, saved[key]))
             else:
-                scored.append(score_record(r, args.judge_provider, args.judge_model))
+                try:
+                    scored.append(score_record(r, args.judge_provider, args.judge_model))
+                except JudgeAuthenticationError as err:
+                    print(f"\n{err}", file=sys.stderr)
+                    raise SystemExit(2) from err
     except KeyboardInterrupt:
         print("\nInterrupted (Ctrl+C) while waiting on the judge API.", flush=True)
         if scored:

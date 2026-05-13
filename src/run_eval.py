@@ -1,7 +1,7 @@
 import argparse
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import IO
 
@@ -104,7 +104,7 @@ def run_eval(
             "model_answer": resp_model_answer,
             "confidence": resp_confidence,
             "raw_text": resp_text,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
         out_file.write(json.dumps(record, ensure_ascii=False) + "\n")
 

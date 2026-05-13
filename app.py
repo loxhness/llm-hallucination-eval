@@ -31,6 +31,7 @@ from score import call_judge                                          # noqa: E4
 from analyze import load_scored, compute_summary, compute_calibration_data  # noqa: E402
 
 RESULTS_DIR = ROOT / "results"
+RESULTS_OPENAI_DIR = ROOT / "results_openai"
 JUDGE_MAX_CALLS_PER_SESSION = 5
 _COLORS = ["#2196F3", "#FF5722", "#4CAF50", "#9C27B0", "#FF9800", "#00BCD4"]
 
@@ -224,20 +225,23 @@ with tab_judge:
 with tab_dash:
     st.subheader("Results dashboard")
 
-    scored_path = RESULTS_DIR / "scored.csv"
+    _candidate_paths = [RESULTS_DIR / "scored.csv", RESULTS_OPENAI_DIR / "scored.csv"]
+    _available = [p for p in _candidate_paths if p.exists()]
 
-    if not scored_path.exists():
+    if not _available:
         st.info(
             "No results found. Generate them first:\n\n"
             "```\npython eval.py --all-conditions\n```"
         )
         st.stop()
 
-    # ── load data ─────────────────────────────────────────────────────────────
-    mtime = datetime.fromtimestamp(scored_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
-    st.caption(f"Loaded `{scored_path.relative_to(ROOT)}` · last modified {mtime}")
+    # ── load and merge all available scored.csv files ─────────────────────────
+    _frames = [load_scored(p) for p in _available]
+    df = pd.concat(_frames, ignore_index=True) if len(_frames) > 1 else _frames[0]
 
-    df = load_scored(scored_path)
+    _labels = ", ".join(f"`{p.relative_to(ROOT)}`" for p in _available)
+    st.caption(f"Loaded {_labels}")
+
     summary = compute_summary(df)
     cal_data = compute_calibration_data(df)
 
