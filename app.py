@@ -10,7 +10,6 @@ Run with:
 """
 
 import os
-import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -22,13 +21,10 @@ import streamlit as st
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent
-_src = ROOT / "src"
-if str(_src) not in sys.path:
-    sys.path.insert(0, str(_src))
 load_dotenv(ROOT / ".env")
 
-from score import call_judge                                          # noqa: E402
-from analyze import load_scored, compute_summary, compute_calibration_data  # noqa: E402
+from idk_eval.judge import call_judge
+from idk_eval.analyzer import load_scored, compute_summary, compute_calibration_data
 
 RESULTS_DIR = ROOT / "results"
 RESULTS_OPENAI_DIR = ROOT / "results_openai"

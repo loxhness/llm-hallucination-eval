@@ -1,3 +1,5 @@
+"""LLM-as-judge scoring for the generate -> judge -> analyze CLI pipeline."""
+
 import argparse
 import json
 import os
@@ -9,8 +11,9 @@ import pandas as pd
 from dotenv import load_dotenv
 from tqdm import tqdm
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(PROJECT_ROOT / ".env")
+from idk_eval.paths import project_root
+
+load_dotenv(project_root() / ".env")
 
 _anthropic_client = None
 _openai_client = None
@@ -78,8 +81,6 @@ def _call_anthropic(user_content: str, model: str) -> str:
     response = client.messages.create(
         model=model,
         max_tokens=256,
-        # cache_control on the system block keeps the prompt cached across the
-        # many identical judge calls in a single scoring run.
         system=[{
             "type": "text",
             "text": JUDGE_SYSTEM_PROMPT,
@@ -106,13 +107,11 @@ def _call_openai(user_content: str, model: str) -> str:
 
 
 def _extract_json(text: str) -> str:
-    """Return the first {...} object in text, ignoring any preamble or trailing content."""
     m = re.search(r"\{.*?\}", text, re.DOTALL)
     return m.group() if m else text
 
 
 def _is_judge_auth_failure(exc: BaseException) -> bool:
-    """401/403 or provider-specific auth messages from the judge API."""
     s = str(exc).lower()
     return (
         "401" in s
@@ -126,7 +125,7 @@ def _is_judge_auth_failure(exc: BaseException) -> bool:
 
 
 class JudgeAuthenticationError(RuntimeError):
-    """Judge API rejected credentials (fix .env keys for the judge provider)."""
+    """Judge API rejected credentials."""
 
 
 def call_judge(
@@ -152,12 +151,26 @@ def call_judge(
         if _is_judge_auth_failure(exc):
             raise JudgeAuthenticationError(
                 f"Judge ({provider}) authentication failed: {exc}\n"
-                "Fix the API key in .env for that provider, or use a different judge "
-                "(e.g. --judge-provider openai --judge-model gpt-4o-mini if only OpenAI is valid)."
+                "Fix the API key in .env for that provider."
             ) from exc
         verdict, reason = "hallucinated", f"Judge error: {exc}"
 
     return verdict, reason
+
+
+class LLMJudge:
+    """Score raw generation records with an LLM judge."""
+
+    def __init__(
+        self,
+        judge_provider: str | None = None,
+        judge_model: str | None = None,
+    ):
+        self.judge_provider = judge_provider or os.getenv("JUDGE_PROVIDER", "anthropic")
+        self.judge_model = judge_model or os.getenv("JUDGE_MODEL", "claude-haiku-4-5-20251001")
+
+    def score(self, record: dict) -> dict:
+        return score_record(record, self.judge_provider, self.judge_model)
 
 
 def score_record(record: dict, judge_provider: str, judge_model: str) -> dict:
@@ -201,7 +214,6 @@ def _write_scored_csv(scored: list, output_path: Path) -> None:
 
 
 def _read_resume_verdicts(path: Path) -> dict[tuple[str, str], dict]:
-    """Map (id, condition) -> judge fields for rows already scored in a CSV."""
     df = pd.read_csv(path)
     if df.empty:
         return {}
@@ -231,74 +243,38 @@ def _require_judge_api_key(provider: str) -> None:
     if provider == "anthropic":
         key = (os.getenv("ANTHROPIC_API_KEY") or "").strip()
         if not key:
-            raise SystemExit(
-                "Missing ANTHROPIC_API_KEY in .env (required for --judge-provider anthropic). "
-                "Add your Anthropic key, or run with --judge-provider openai --judge-model gpt-4o-mini."
-            )
+            raise SystemExit("Missing ANTHROPIC_API_KEY in .env (required for --judge-provider anthropic).")
     else:
         key = (os.getenv("OPENAI_API_KEY") or "").strip()
         if not key:
-            raise SystemExit(
-                "Missing OPENAI_API_KEY in .env (required for --judge-provider openai)."
-            )
+            raise SystemExit("Missing OPENAI_API_KEY in .env (required for --judge-provider openai).")
 
 
 def main() -> None:
+    root = project_root()
     parser = argparse.ArgumentParser(description="Score raw generations using an LLM judge.")
-    parser.add_argument(
-        "--input",
-        default=PROJECT_ROOT / "results" / "raw_generations.jsonl",
-        type=Path,
-        help="Input JSONL (raw generations)",
-    )
-    parser.add_argument(
-        "--output",
-        default=PROJECT_ROOT / "results" / "scored.csv",
-        type=Path,
-        help="Output CSV (scored)",
-    )
+    parser.add_argument("--input", default=root / "results" / "raw_generations.jsonl", type=Path)
+    parser.add_argument("--output", default=root / "results" / "scored.csv", type=Path)
     parser.add_argument(
         "--judge-provider",
         default=os.getenv("JUDGE_PROVIDER", "anthropic"),
         choices=["anthropic", "openai"],
-        help="LLM provider for the judge (env: JUDGE_PROVIDER). Does not inherit LLM_PROVIDER.",
     )
     parser.add_argument(
         "--judge-model",
         default=os.getenv("JUDGE_MODEL", "claude-haiku-4-5-20251001"),
-        help="Model for the judge (env: JUDGE_MODEL)",
     )
-    parser.add_argument(
-        "--resume",
-        action="store_true",
-        help="Reuse judge verdicts from existing --output CSV for matching id+condition (skip API).",
-    )
+    parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
-
-    jm = (args.judge_model or "").lower()
-    if args.judge_provider == "openai" and ("claude" in jm or "anthropic" in jm):
-        raise SystemExit(
-            "Judge config error: --judge-provider openai but --judge-model looks like an Anthropic "
-            f"model ({args.judge_model!r}). Use an OpenAI model (e.g. gpt-4o-mini) or set "
-            "--judge-provider anthropic."
-        )
-    if args.judge_provider == "anthropic" and jm and ("gpt-" in jm or "o1" in jm or "o3" in jm):
-        raise SystemExit(
-            "Judge config error: --judge-provider anthropic but --judge-model looks like an OpenAI "
-            f"model ({args.judge_model!r}). Use a Claude model id or --judge-provider openai."
-        )
 
     _require_judge_api_key(args.judge_provider)
 
     records = load_raw_generations(args.input)
     saved = {}
-    if args.resume:
-        if not args.output.exists():
-            print("--resume ignored: output file does not exist yet.")
-        else:
-            saved = _read_resume_verdicts(args.output)
-            if saved:
-                print(f"--resume: reusing {len(saved)} verdict(s) from {args.output}")
+    if args.resume and args.output.exists():
+        saved = _read_resume_verdicts(args.output)
+        if saved:
+            print(f"--resume: reusing {len(saved)} verdict(s) from {args.output}")
 
     pending = sum(1 for r in records if (str(r["id"]), str(r["condition"])) not in saved)
     print(
@@ -323,15 +299,7 @@ def main() -> None:
         print("\nInterrupted (Ctrl+C) while waiting on the judge API.", flush=True)
         if scored:
             _write_scored_csv(scored, partial_path)
-            print(
-                f"Saved {len(scored)}/{len(records)} rows to:\n  {partial_path}\n"
-                "Continue with the same input and:\n"
-                f"  python src/score.py --resume --output {partial_path}\n"
-                "(then rename or copy the file over your final scored.csv if you like.)",
-                flush=True,
-            )
-        else:
-            print("No rows completed before interrupt.", flush=True)
+            print(f"Saved {len(scored)}/{len(records)} rows to:\n  {partial_path}", flush=True)
         raise SystemExit(130) from None
 
     _write_scored_csv(scored, args.output)

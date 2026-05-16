@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+from idk_eval.paths import project_root
 
 # Palette for multi-model charts; supports up to 6 models.
 _MODEL_COLORS = ["#2196F3", "#FF5722", "#4CAF50", "#9C27B0", "#FF9800", "#00BCD4"]
@@ -294,19 +294,19 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--input",
-        default=PROJECT_ROOT / "results" / "scored.csv",
+        default=project_root() / "results" / "scored.csv",
         type=Path,
         help="Input scored CSV",
     )
     parser.add_argument(
         "--summary",
-        default=PROJECT_ROOT / "results" / "summary.csv",
+        default=project_root() / "results" / "summary.csv",
         type=Path,
         help="Output summary CSV",
     )
     parser.add_argument(
         "--plots-dir",
-        default=PROJECT_ROOT / "results" / "plots",
+        default=project_root() / "results" / "plots",
         type=Path,
         help="Directory for plot PNGs",
     )

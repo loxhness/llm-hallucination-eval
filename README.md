@@ -20,11 +20,11 @@ Open the **[hosted dashboard](https://uzair-llm-hallucination-framework.streamli
 ## Quickstart
 
 ```bash
-# 1. Install dependencies
+# 1. Install the package (editable install for development)
 python -m venv venv
 venv\Scripts\activate        # Windows
 # source venv/bin/activate   # macOS / Linux
-pip install -r requirements.txt
+pip install -e ".[dev,app]"
 ```
 
 Copy `.env.example` to `.env` and fill in your API key and model choices:
@@ -40,7 +40,8 @@ JUDGE_MODEL=claude-haiku-4-5-20251001
 
 ```bash
 # 2. Run the full pipeline
-python eval.py --all-conditions
+idk-eval run --all-conditions
+# or: python eval.py --all-conditions
 ```
 
 That single command runs all three stages in sequence—response generation, LLM-as-judge scoring, and metric computation—then prints a summary table to the terminal. Results land in `results/` as `scored.csv`, `summary.csv`, and a plots directory.
@@ -48,14 +49,14 @@ That single command runs all three stages in sequence—response generation, LLM
 To compare two models side by side, pass `--models` with explicit provider prefixes:
 
 ```bash
-python eval.py --models anthropic:claude-haiku-4-5-20251001 openai:gpt-4o-mini --all-conditions
+idk-eval run --models anthropic:claude-haiku-4-5-20251001 openai:gpt-4o-mini --all-conditions
 ```
 
 To evaluate against the TruthfulQA dataset instead of the built-in question set:
 
 ```bash
-python src/load_dataset.py                                   # downloads ~175 questions
-python eval.py --dataset data/questions_truthfulqa.jsonl --all-conditions
+idk-eval download-truthfulqa                                  # downloads ~175 questions
+idk-eval run --dataset data/questions_truthfulqa.jsonl --all-conditions
 ```
 
 To explore results interactively:
@@ -74,7 +75,7 @@ The experiment is structured around a single underlying question: does the way y
 
 ### Dataset
 
-The built-in question set contains 60 questions spread across four categories. Factual questions have unambiguous correct answers and come in two difficulty tiers—straightforward recall questions like capitals and dates, and harder questions where the model is more likely to confabulate a plausible-sounding but wrong answer. Ambiguous questions have defensible answers but no single ground truth; they test whether the model will commit confidently to a contestable claim. Unanswerable questions are genuinely unknowable—questions about the asker's future, private information, or things that depend on context the model cannot have. For a broader evaluation, `src/load_dataset.py` downloads a proportionally sampled subset of TruthfulQA and converts it into the same format, adding a `type` field that preserves the original TruthfulQA category label for traceability.
+The built-in question set contains 60 questions spread across four categories. Factual questions have unambiguous correct answers and come in two difficulty tiers—straightforward recall questions like capitals and dates, and harder questions where the model is more likely to confabulate a plausible-sounding but wrong answer. Ambiguous questions have defensible answers but no single ground truth; they test whether the model will commit confidently to a contestable claim. Unanswerable questions are genuinely unknowable—questions about the asker's future, private information, or things that depend on context the model cannot have. For a broader evaluation, `idk-eval download-truthfulqa` downloads a proportionally sampled subset of TruthfulQA and converts it into the same format, adding a `type` field that preserves the original TruthfulQA category label for traceability.
 
 Each question record carries an `id`, a `category`, the question text, and an `answer` field that is set to the string `"UNANSWERABLE"` for questions in the unanswerable category. That sentinel value is passed to the judge, which is instructed to treat any confident answer as a hallucination and any abstention as the correct response.
 
@@ -86,11 +87,11 @@ Five conditions are evaluated. The **baseline** condition asks the model to answ
 
 Each response is scored by a second model call that reads the question, the expected answer, and the model's response, then classifies the response as `correct`, `hallucinated`, or `abstained`. The judge prompt instructs the model to return a JSON object with a `verdict` field and a one-sentence `reason`. The judge system prompt is cached across all calls in a single scoring run to reduce cost and latency. String matching was deliberately avoided: a response of "The capital is Paris" should be scored the same as "Paris" for a question about the French capital, and that kind of semantic equivalence is precisely what a language model judge handles better than regex.
 
-The judge call in `src/score.py` includes a `_extract_json` preprocessing step that strips any preamble before the first `{` character, so a model that adds introductory text before the JSON object does not cause a parse failure.
+The judge call in `idk_eval.scorer` includes a `_extract_json` preprocessing step that strips any preamble before the first `{` character, so a model that adds introductory text before the JSON object does not cause a parse failure.
 
 ### Confidence calibration
 
-Every generation prompt asks the model to provide a confidence score from 0 to 100 alongside its answer. `src/analyze.py` uses this self-reported confidence to compute two calibration statistics. The Brier score—the mean squared error between normalized confidence and the binary correctness outcome—gives a single number summarizing how well the model's confidence tracks its actual accuracy across the dataset; lower is better, with 0 representing perfect calibration. The calibration curve buckets predictions by confidence level, plots mean confidence against actual accuracy per bucket, and overlays a reference diagonal representing perfect calibration. A model whose curve falls below the diagonal is systematically overconfident; one above it is underconfident. Both statistics are computed per model and per prompting condition so you can see whether certain conditions improve or degrade calibration independently of accuracy.
+Every generation prompt asks the model to provide a confidence score from 0 to 100 alongside its answer. `idk_eval.analyzer` uses this self-reported confidence to compute two calibration statistics. The Brier score—the mean squared error between normalized confidence and the binary correctness outcome—gives a single number summarizing how well the model's confidence tracks its actual accuracy across the dataset; lower is better, with 0 representing perfect calibration. The calibration curve buckets predictions by confidence level, plots mean confidence against actual accuracy per bucket, and overlays a reference diagonal representing perfect calibration. A model whose curve falls below the diagonal is systematically overconfident; one above it is underconfident. Both statistics are computed per model and per prompting condition so you can see whether certain conditions improve or degrade calibration independently of accuracy.
 
 ---
 
@@ -117,23 +118,24 @@ The next most useful additions would be a statistical significance layer—right
 ## Project structure
 
 ```
-eval.py                          ← full pipeline entrypoint
+pyproject.toml                   ← package metadata and dependencies
+eval.py                          ← legacy pipeline wrapper (calls idk-eval run)
 app.py                           ← Streamlit dashboard
 
+src/idk_eval/
+  cli.py                         ← idk-eval terminal command
+  evaluator.py                   ← generate model responses
+  scorer.py                      ← LLM-as-judge scoring
+  analyzer.py                    ← metrics, Brier score, calibration curve, plots
+  dataset.py                     ← load built-in data; download TruthfulQA
+  strategy.py                    ← prompting conditions
+  models.py                      ← LiteLLM generation client
+  data/mixed_v1.jsonl            ← built-in question set (60 questions)
+
 data/
-  questions.jsonl                ← built-in question set (60 questions)
-  questions_truthfulqa.jsonl     ← generated by src/load_dataset.py
+  questions_truthfulqa.jsonl     ← generated by idk-eval download-truthfulqa
 
-src/
-  run_eval.py                    ← generate model responses
-  score.py                       ← LLM-as-judge scoring
-  analyze.py                     ← metrics, Brier score, calibration curve, plots
-  load_dataset.py                ← download and convert TruthfulQA
-  providers.py                   ← OpenAI / Anthropic provider wrappers
-
-results/
-  raw_generations.jsonl
-  scored.csv
-  summary.csv
-  plots/
+results/                         ← pipeline outputs (gitignored)
+examples/quickstart.py
+tests/test_scorer.py
 ```
